@@ -143,10 +143,15 @@ mod tests {
     fn test_tokenize_complex() {
         let input = r#"let five = 5;
             let ten = 10;
+
             let add = fn(x,y) {
                 x+y;
             };
-            let result = add(five,ten);"#;
+
+            let result = add(five,ten);
+            !-/*5;
+            5 < 10 > 5;
+            "#;
         
         let expected = vec![
             Let,
@@ -184,6 +189,18 @@ mod tests {
             Comma,
             Ident(String::from("ten")),
             Rparen,
+            Semicolon,
+            Bang,
+            Dash,
+            ForwardSlash,
+            Asterisk,
+            Int(String::from("5")),
+            Semicolon,
+            Int(String::from("5")),
+            LesserThan,
+            Int(String::from("10")),
+            GreaterThan,
+            Int(String::from("5")),
             Semicolon,
             Eof,
         ];
