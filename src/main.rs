@@ -1,3 +1,6 @@
+use monkers::repl::Repl;
+
 fn main() {
-    println!("Hello, world!");
+    let repl = Repl::new();
+    repl.start();
 }
