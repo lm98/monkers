@@ -39,5 +39,6 @@ pub struct LetStatement {
 
 #[derive(Debug, PartialEq)]
 pub struct ReturnStatement {
+    pub token: Token,
     pub return_value: Expression,
 }

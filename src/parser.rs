@@ -1,4 +1,4 @@
-use crate::ast::{Expression, Identifier, LetStatement, Literal, Program, Statement};
+use crate::ast::{Expression, Identifier, LetStatement, Literal, Program, ReturnStatement, Statement};
 use crate::lexer::Lexer;
 use crate::lexer::token::Token;
 
@@ -38,6 +38,7 @@ impl Parser {
     pub fn parse_statement(&mut self) -> Result<Statement, String> {
         match self.current_token {
             Token::Let => self.parse_let_statement(),
+            Token::Return => self.parse_return_statement(),
             _ => Err("Unexpected".to_string())
         }
     }
@@ -64,6 +65,17 @@ impl Parser {
         Ok(statement)
     }
     
+    pub fn parse_return_statement(&mut self) -> Result<Statement, String> {
+        let token = self.current_token.clone();
+        self.next_token();
+        let return_value = self.parse_expression()?;
+        let statement = Statement::Return(ReturnStatement {
+            token,
+            return_value,
+        });
+        Ok(statement)
+    }
+    
     pub fn parse_expression(&mut self) -> Result<Expression, String> {
         let expr = match self.current_token {
             Token::Int(ref value) => Ok(Expression::Lit(Literal(value.clone()))),
@@ -77,7 +89,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{Expression, Identifier, LetStatement, Literal, Statement};
+    use crate::ast::{Expression, Identifier, LetStatement, Literal, ReturnStatement, Statement};
     use crate::lexer::Lexer;
     use crate::lexer::token::Token;
     use crate::parser::Parser;
@@ -110,6 +122,31 @@ mod tests {
                 name: Identifier("foobar".to_string()),
                 value: Expression::Lit(Literal("838383".to_string())),
             }),
+        ];
+        
+        for (i, statement) in program.statements.iter().enumerate() {
+            assert_eq!(statement, &expected_statements[i]);
+        }
+        
+        Ok(())
+    }
+    
+    #[test]
+    fn test_return_statements() -> Result<(), String> {
+        let input = r#"
+        return 5;
+        return 10;
+        return 993322;
+        "#;
+        
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program()?;
+        assert_eq!(program.statements.len(), 3);
+        let expected_statements: Vec<Statement> = vec![
+            Statement::Return(ReturnStatement { token: Token::Return, return_value: Expression::Lit(Literal("5".to_string())) }),
+            Statement::Return(ReturnStatement { token: Token::Return, return_value: Expression::Lit(Literal("10".to_string())) }),
+            Statement::Return(ReturnStatement { token: Token::Return, return_value: Expression::Lit(Literal("993322".to_string())) })
         ];
         
         for (i, statement) in program.statements.iter().enumerate() {
