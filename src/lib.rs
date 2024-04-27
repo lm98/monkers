@@ -1,2 +1,4 @@
-pub(crate) mod lexer;
+pub mod lexer;
 pub mod repl;
+pub mod ast;
+pub mod parser;
