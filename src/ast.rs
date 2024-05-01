@@ -1,15 +1,37 @@
+use crate::ast::show::Show;
 use crate::lexer::token::Token;
+pub mod show;
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
     Let(LetStatement),
     Return(ReturnStatement),
+    Expression(ExpressionStatement),
+}
+
+impl Show for Statement {
+    fn show(&self) -> String {
+        match self {
+            Statement::Let(let_statement) => let_statement.show(),
+            Statement::Return(return_statement) => return_statement.show(),
+            Statement::Expression(expression_statement) => expression_statement.show(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {
     Id(Identifier),
     Lit(Literal),
+}
+
+impl Show for Expression {
+    fn show(&self) -> String {
+        match self {
+            Expression::Id(id) => id.0.clone(),
+            Expression::Lit(lit) => lit.0.clone(),
+        }
+    }
 }
 
 pub struct Program {
@@ -21,6 +43,16 @@ impl Program {
         Self {
             statements: Vec::new(),
         }
+    }
+}
+
+impl Show for Program {
+    fn show(&self) -> String {
+        let mut program = String::new();
+        for statement in &self.statements {
+            program.push_str(&statement.show());
+        }
+        program
     }
 }
 
@@ -37,8 +69,55 @@ pub struct LetStatement {
     pub value: Expression,
 }
 
+impl Show for LetStatement {
+    fn show(&self) -> String {
+        format!("{} {} = {};", self.token, self.name.0, self.value.show())
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct ReturnStatement {
     pub token: Token,
     pub return_value: Expression,
+}
+
+impl Show for ReturnStatement {
+    fn show(&self) -> String {
+        format!("{} {};", self.token, self.return_value.show())
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ExpressionStatement {
+    pub token: Token,
+    pub expression: Expression,
+}
+
+impl Show for ExpressionStatement {
+    fn show(&self) -> String {
+        format!("{}", self.expression.show())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_show_program() {
+        let program = Program {
+            statements: vec![
+                Statement::Let(LetStatement {
+                    token: Token::Let,
+                    name: Identifier("myVar".to_string()),
+                    value: Expression::Id(Identifier("anotherVar".to_string())),
+                }),
+                Statement::Return(ReturnStatement {
+                    token: Token::Return,
+                    return_value: Expression::Lit(Literal("5".to_string())),
+                }),
+            ],
+        };
+        assert_eq!(program.show(), "let myVar = anotherVar;return 5;");
+    }
 }

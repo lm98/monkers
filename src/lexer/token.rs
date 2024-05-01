@@ -1,4 +1,6 @@
-#[derive(Debug, PartialEq, Clone)]
+use std::fmt::Display;
+
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub enum Token {
     Let,
     Ident(String),
@@ -27,4 +29,39 @@ pub enum Token {
     False,
     True,
     Return,
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let token = match self {
+            Token::Let => "let",
+            Token::Ident(name) => name,
+            Token::Int(value) => value,
+            Token::Assign => "=",
+            Token::Plus => "+",
+            Token::Lparen => "(",
+            Token::Rparen => ")",
+            Token::Lbrace => "{",
+            Token::Rbrace => "}",
+            Token::Comma => ",",
+            Token::Semicolon => ";",
+            Token::Eof => "EOF",
+            Token::Illegal => "ILLEGAL",
+            Token::Function => "fn",
+            Token::Bang => "!",
+            Token::Dash => "-",
+            Token::GreaterThan => ">",
+            Token::LesserThan => "<",
+            Token::Equals => "==",
+            Token::If => "if",
+            Token::Else => "else",
+            Token::Asterisk => "*",
+            Token::ForwardSlash => "/",
+            Token::NotEqual => "!=",
+            Token::False => "false",
+            Token::True => "true",
+            Token::Return => "return",
+        };
+        write!(f, "{}", token)
+    }
 }

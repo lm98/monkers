@@ -1,11 +1,19 @@
-use crate::ast::{Expression, Identifier, LetStatement, Literal, Program, ReturnStatement, Statement};
+use std::collections::HashMap;
+
+use crate::ast::{Expression, ExpressionStatement, Identifier, LetStatement, Program, ReturnStatement, Statement};
 use crate::lexer::Lexer;
 use crate::lexer::token::Token;
+use crate::parser::expression::{InfixParseFn, Precedence, PrefixParseFn};
+use crate::parser::expression::Precedence::Lowest;
+
+pub mod expression;
 
 pub struct Parser {
     lexer: Lexer,
     current_token: Token,
     peek_token: Token,
+    prefix_parse_fns: HashMap<Token, PrefixParseFn>,
+    infix_parse_fns: HashMap<Token, InfixParseFn>,
 }
 
 impl Parser {
@@ -14,7 +22,10 @@ impl Parser {
             lexer,
             current_token: Token::Illegal,
             peek_token: Token::Illegal,
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
         };
+        parser.prefix_parse_fns.insert(Token::Ident("".to_string()), parse_identifier);
         parser.next_token();
         parser.next_token();
         parser
@@ -39,7 +50,7 @@ impl Parser {
         match self.current_token {
             Token::Let => self.parse_let_statement(),
             Token::Return => self.parse_return_statement(),
-            _ => Err("Unexpected".to_string())
+            _ => self.parse_expression_statement(),
         }
     }
     
@@ -56,7 +67,7 @@ impl Parser {
             return Err(format!("Expected Assign, got {:?}", self.current_token));
         }
         self.next_token();
-        let expression = self.parse_expression()?;
+        let expression = self.parse_expression(Lowest)?;
         let statement = Statement::Let(LetStatement {
             token,
             name: identifier.clone(),
@@ -68,7 +79,7 @@ impl Parser {
     pub fn parse_return_statement(&mut self) -> Result<Statement, String> {
         let token = self.current_token.clone();
         self.next_token();
-        let return_value = self.parse_expression()?;
+        let return_value = self.parse_expression(Lowest)?;
         let statement = Statement::Return(ReturnStatement {
             token,
             return_value,
@@ -76,22 +87,37 @@ impl Parser {
         Ok(statement)
     }
     
-    pub fn parse_expression(&mut self) -> Result<Expression, String> {
-        let expr = match self.current_token {
-            Token::Int(ref value) => Ok(Expression::Lit(Literal(value.clone()))),
-            Token::Ident(ref name) => Ok(Expression::Id(Identifier(name.clone()))),
-            _ => Err(format!("Unexpected token: {:?}", self.current_token)),
-        };
-        self.next_token();
-        expr
+    pub fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
+        let prefix = self.prefix_parse_fns.get(&self.current_token);
+        if prefix.is_none() {
+            return Err(format!("No prefix parse function for {:?}", self.current_token));
+        }
+        let left_expression = prefix.unwrap()(self)?;
+        Ok(left_expression)
     }
+    
+    pub fn parse_expression_statement(&mut self) -> Result<Statement, String> {
+        let expression = self.parse_expression(Lowest)?;
+        let statement = Statement::Expression(ExpressionStatement {
+            token: self.current_token.clone(),
+            expression,
+        });
+        Ok(statement)
+    }
+    
+    
+}
+
+pub fn parse_identifier(parser: &mut Parser) -> Result<Expression, String> {
+    Ok(Expression::Id(Identifier(parser.current_token.to_string())))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{Expression, Identifier, LetStatement, Literal, ReturnStatement, Statement};
+    use crate::ast::{Expression, ExpressionStatement, Identifier, LetStatement, Literal, ReturnStatement, Statement};
     use crate::lexer::Lexer;
     use crate::lexer::token::Token;
+    use crate::lexer::token::Token::Ident;
     use crate::parser::Parser;
 
     #[test]
@@ -153,6 +179,18 @@ mod tests {
             assert_eq!(statement, &expected_statements[i]);
         }
         
+        Ok(())
+    }
+    
+    #[test]
+    fn test_identifier_expression() -> Result<(), String> {
+        let input = "foobar;";
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program()?;
+        assert_eq!(program.statements.len(), 1);
+        let expected_statement = Statement::Expression(ExpressionStatement { token: Ident("foobar".to_string()), expression: Expression::Id(Identifier("foobar".to_string())) });
+        assert_eq!(program.statements[0], expected_statement);
         Ok(())
     }
 }
