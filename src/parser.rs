@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::ast::{Expression, ExpressionStatement, Identifier, IntegerLiteral, LetStatement, Literal, Program, ReturnStatement, Statement};
+use crate::ast::{Expression, ExpressionStatement, Identifier, IntegerLiteral, LetStatement, Program, ReturnStatement, Statement};
 use crate::lexer::Lexer;
 use crate::lexer::token::{Token, TokenType};
-use crate::lexer::token::TokenType::Illegal;
+use crate::lexer::token::TokenType::{Bang, Dash, Ident, Illegal, Int};
 use crate::parser::expression::{InfixParseFn, Precedence, PrefixParseFn};
 use crate::parser::expression::Precedence::Lowest;
 use crate::token;
@@ -27,8 +27,10 @@ impl Parser {
             prefix_parse_fns: HashMap::new(),
             infix_parse_fns: HashMap::new(),
         };
-        parser.prefix_parse_fns.insert(TokenType::Ident, parse_identifier);
-        parser.prefix_parse_fns.insert(TokenType::Int, parse_integer_literal);
+        parser.prefix_parse_fns.insert(Ident, parse_identifier);
+        parser.prefix_parse_fns.insert(Int, parse_integer_literal);
+        parser.prefix_parse_fns.insert(Bang, parse_prefix_expression);
+        parser.prefix_parse_fns.insert(Dash, parse_prefix_expression);
         parser.next_token();
         parser.next_token();
         parser
@@ -76,6 +78,11 @@ impl Parser {
             name: identifier.clone(),
             value: expression,
         });
+        if self.peek_token.token_type == TokenType::Semicolon {
+            self.next_token();
+        } else {
+            return Err(format!("Expected Semicolon, got {:?}", self.peek_token));
+        }
         Ok(statement)
     }
     
@@ -87,6 +94,9 @@ impl Parser {
             token,
             return_value,
         });
+        if self.peek_token.token_type == TokenType::Semicolon {
+            self.next_token();
+        }
         Ok(statement)
     }
     
@@ -105,10 +115,11 @@ impl Parser {
             token: self.current_token.clone(),
             expression,
         });
+        if self.peek_token.token_type == TokenType::Semicolon {
+            self.next_token();
+        }
         Ok(statement)
     }
-    
-    
 }
 
 pub fn parse_identifier(parser: &mut Parser) -> Result<Expression, String> {
@@ -120,9 +131,19 @@ pub fn parse_integer_literal(parser: &mut Parser) -> Result<Expression, String> 
     Ok(Expression::Integer(IntegerLiteral(val)))
 }
 
+pub fn parse_prefix_expression(parser: &mut Parser) -> Result<Expression, String> {
+    let operator = parser.current_token.literal.clone();
+    parser.next_token();
+    let right = parser.parse_expression(Precedence::Prefix)?;
+    Ok(Expression::Prefix {
+        operator,
+        right: Box::new(right),
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::ast::{Expression, ExpressionStatement, Identifier, IntegerLiteral, LetStatement, Literal, ReturnStatement, Statement};
+    use crate::ast::{Expression, ExpressionStatement, Identifier, IntegerLiteral, LetStatement, ReturnStatement, Statement};
     use crate::lexer::Lexer;
     use crate::lexer::token::Token;
     use crate::lexer::token::TokenType::{Ident, Int, Let, Return};
@@ -145,17 +166,17 @@ mod tests {
             Statement::Let(LetStatement {
                 token: token!(Let, "let"),
                 name: Identifier("x".to_string()),
-                value: Expression::Lit(Literal("5".to_string())),
+                value: Expression::Integer(IntegerLiteral(5)),
             }),
             Statement::Let(LetStatement {
                 token: token!(Let, "let"),
                 name: Identifier("y".to_string()),
-                value: Expression::Lit(Literal("10".to_string())),
+                value: Expression::Integer(IntegerLiteral(10)),
             }),
             Statement::Let(LetStatement {
                 token: token!(Let, "let"),
                 name: Identifier("foobar".to_string()),
-                value: Expression::Lit(Literal("838383".to_string())),
+                value: Expression::Integer(IntegerLiteral(838383)),
             }),
         ];
         
@@ -179,9 +200,9 @@ mod tests {
         let program = parser.parse_program()?;
         assert_eq!(program.statements.len(), 3);
         let expected_statements: Vec<Statement> = vec![
-            Statement::Return(ReturnStatement { token: Token { token_type: Return, literal: "return".to_string() }, return_value: Expression::Lit(Literal("5".to_string())) }),
-            Statement::Return(ReturnStatement { token: Token { token_type: Return, literal: "return".to_string() }, return_value: Expression::Lit(Literal("10".to_string())) }),
-            Statement::Return(ReturnStatement { token: Token { token_type: Return, literal: "return".to_string() }, return_value: Expression::Lit(Literal("993322".to_string())) })
+            Statement::Return(ReturnStatement { token: token!(Return, "return"), return_value: Expression::Integer(IntegerLiteral(5)) }),
+            Statement::Return(ReturnStatement { token: token!(Return, "return"), return_value: Expression::Integer(IntegerLiteral(10)) }),
+            Statement::Return(ReturnStatement { token: token!(Return, "return"), return_value: Expression::Integer(IntegerLiteral(993322)) })
         ];
         
         for (i, statement) in program.statements.iter().enumerate() {
@@ -198,20 +219,55 @@ mod tests {
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program()?;
         assert_eq!(program.statements.len(), 1);
-        let expected_statement = Statement::Expression(ExpressionStatement { token: Token { token_type: Ident, literal: "foobar".to_string() }, expression: Expression::Id(Identifier("foobar".to_string())) });
+        let expected_statement = Statement::Expression(ExpressionStatement { token: token!(Ident, "foobar"), expression: Expression::Id(Identifier("foobar".to_string())) });
         assert_eq!(program.statements[0], expected_statement);
         Ok(())
     }
     
     #[test]
     fn test_integer_expression() -> Result<(), String> {
-        let input = "5";
+        let input = "5;";
         let lexer = Lexer::new(input.to_string());
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program()?;
         assert_eq!(program.statements.len(), 1);
-        let expected_statement = Statement::Expression(ExpressionStatement { token: Token { token_type: Int, literal: "5".to_string() }, expression: Expression::Integer(IntegerLiteral(5)) });
+        let expected_statement = Statement::Expression(ExpressionStatement { token: token!(Int, "5"), expression: Expression::Integer(IntegerLiteral(5)) });
         assert_eq!(program.statements[0], expected_statement);
+        Ok(())
+    }
+    
+    #[test]
+    fn test_prefix_expression() -> Result<(), String> {
+        let input = "!5;-15;";
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program()?;
+        assert_eq!(program.statements.len(), 2);
+        let expected_statements: Vec<Statement> = vec![
+            Statement::Expression(
+                ExpressionStatement { 
+                    token: token!(Int, "5"),
+                    expression: Expression::Prefix { 
+                        operator: "!".to_string(), 
+                        right: Box::new(Expression::Integer(IntegerLiteral(5))) 
+                    } 
+                }
+            ),
+            Statement::Expression(
+                ExpressionStatement { 
+                    token: token!(Int, "15"), 
+                    expression: Expression::Prefix { 
+                        operator: "-".to_string(), 
+                        right: Box::new(Expression::Integer(IntegerLiteral(15))) 
+                    }
+                }
+            ),
+        ];
+        
+        for (i, statement) in program.statements.iter().enumerate() {
+            assert_eq!(statement, &expected_statements[i]);
+        }
+        
         Ok(())
     }
 }

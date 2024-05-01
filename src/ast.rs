@@ -24,6 +24,10 @@ pub enum Expression {
     Id(Identifier),
     Lit(Literal),
     Integer(IntegerLiteral),
+    Prefix {
+        operator: String,
+        right: Box<Expression>,
+    },
 }
 
 impl Show for Expression {
@@ -32,6 +36,7 @@ impl Show for Expression {
             Expression::Id(id) => id.0.clone(),
             Expression::Lit(lit) => lit.0.clone(),
             Expression::Integer(int) => int.0.to_string(),
+            Expression::Prefix { operator, right } => format!("({}{})", operator, right.show()),
         }
     }
 }
@@ -66,6 +71,11 @@ pub struct Literal(pub String);
 
 #[derive(Debug, PartialEq)]
 pub struct IntegerLiteral(pub i64);
+
+pub struct PrefixExpression {
+    pub operator: String,
+    pub right: Box<Expression>,
+}
 
 #[derive(Debug, PartialEq)]
 pub struct LetStatement {
