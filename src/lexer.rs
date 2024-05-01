@@ -1,5 +1,6 @@
 use crate::lexer::token::Token;
-use crate::lexer::token::Token::*;
+use crate::lexer::token::TokenType::*;
+use crate::token;
 
 pub mod token;
 
@@ -28,47 +29,47 @@ impl Lexer {
             b'=' => {
                 if self.lookahead() == b'=' {
                     self.read_char();
-                    Equals
+                    token!(Equals, "==")
                 } else {
-                    Assign
+                    token!(Assign, "=")
                 }
             },
-            b'+' => Plus,
-            b'-' => Dash,
-            b'*' => Asterisk,
-            b'(' => Lparen,
-            b')' => Rparen,
-            b'{' => Lbrace,
-            b'}' => Rbrace,
-            b',' => Comma,
-            b';' => Semicolon,
+            b'+' => token!(Plus, "+"),
+            b'-' => token!(Dash, "-"),
+            b'*' => token!(Asterisk, "*"),
+            b'(' => token!(Lparen, "("),
+            b')' => token!(Rparen, ")"),
+            b'{' => token!(Lbrace, "{"),
+            b'}' => token!(Rbrace, "}"),
+            b',' => token!(Comma, ","),
+            b';' => token!(Semicolon, ";"),
             b'!' => {
                 if self.lookahead() == b'=' {
                     self.read_char();
-                    NotEqual
+                    token!(NotEqual, "!=")
                 } else {
-                    Bang
+                    token!(Bang, "!")
                 }
             },
-            b'/' => ForwardSlash,
-            b'<' => LesserThan,
-            b'>' => GreaterThan,
+            b'/' => token!(ForwardSlash, "/"),
+            b'<' => token!(LesserThan, "<"),
+            b'>' => token!(GreaterThan, ">"),
             b'a'..=b'z' => {
                 let id = self.read_ident();
                 return match id.as_str() {
-                    "let" => Let,
-                    "fn" => Function,
-                    "else" => Else,
-                    "if" => If,
-                    "true" => True,
-                    "false" => False,
-                    "return" => Return,
-                    _ => Ident(id),
+                    "let" => token!(Let, "let"),
+                    "fn" => token!(Function, "fn"),
+                    "else" => token!(Else, "else"),
+                    "if" => token!(If, "if"),
+                    "true" => token!(True, "true"),
+                    "false" => token!(False, "false"),
+                    "return" => token!(Return, "return"),
+                    _ => token!(Ident, id),
                 }
             },
-            b'0'..=b'9' => return Int(self.read_num()),
-            0 => Eof,
-            _ => Illegal,
+            b'0'..=b'9' => return token!(Int, self.read_num()),
+            0 => token!(Eof, ""),
+            _ => token!(Illegal, ""),
         };
         self.read_char();
         tok
@@ -121,7 +122,7 @@ impl Iterator for Lexer {
 
     fn next(&mut self) -> Option<Self::Item> {
         let tok = self.next_token();
-        if tok == Eof {
+        if tok.token_type == Eof {
             None
         } else {
             Some(tok)
@@ -133,20 +134,22 @@ impl Iterator for Lexer {
 
 #[cfg(test)]
 mod tests {
+    use crate::lexer::token::TokenType::Assign;
+    use crate::token;
     use super::*;
 
     #[test]
     fn test_tokenize_simple() {
         let input = "=+(){},;";
         let expected = vec![
-            Assign,
-            Plus,
-            Lparen,
-            Rparen,
-            Lbrace,
-            Rbrace,
-            Comma,
-            Semicolon
+            token!(Assign, "="),
+            token!(Plus, "+"),
+            token!(Lparen, "("),
+            token!(Rparen, ")"),
+            token!(Lbrace, "{"),
+            token!(Rbrace, "}"),
+            token!(Comma, ","),
+            token!(Semicolon, ";"),
         ];
         let mut lex = Lexer::new(input.to_string());
         for tok in expected.iter() {
@@ -169,60 +172,59 @@ mod tests {
             "#;
         
         let expected = vec![
-            Let,
-            Ident(String::from("five")),
-            Assign,
-            Int(String::from("5")),
-            Semicolon,
-            Let,
-            Ident(String::from("ten")),
-            Assign,
-            Int(String::from("10")),
-            Semicolon,
-            Let,
-            Ident(String::from("add")),
-            Assign,
-            Function,
-            Lparen,
-            Ident(String::from("x")),
-            Comma,
-            Ident(String::from("y")),
-            Rparen,
-            Lbrace,
-            Ident(String::from("x")),
-            Plus,
-            Ident(String::from("y")),
-            Semicolon,
-            Rbrace,
-            Semicolon,
-            Let,
-            Ident(String::from("result")),
-            Assign,
-            Ident(String::from("add")),
-            Lparen,
-            Ident(String::from("five")),
-            Comma,
-            Ident(String::from("ten")),
-            Rparen,
-            Semicolon,
-            Bang,
-            Dash,
-            ForwardSlash,
-            Asterisk,
-            Int(String::from("5")),
-            Semicolon,
-            Int(String::from("5")),
-            LesserThan,
-            Int(String::from("10")),
-            GreaterThan,
-            Int(String::from("5")),
-            Semicolon,
-            Eof,
+            token!(Let, "let"),
+            token!(Ident, "five"),
+            token!(Assign, "="),
+            token!(Int, "5"),
+            token!(Semicolon, ";"),
+            token!(Let, "let"),
+            token!(Ident, "ten"),
+            token!(Assign, "="),
+            token!(Int, "10"),
+            token!(Semicolon, ";"),
+            token!(Let, "let"),
+            token!(Ident, "add"),
+            token!(Assign, "="),
+            token!(Function, "fn"),
+            token!(Lparen, "("),
+            token!(Ident, "x"),
+            token!(Comma, ","),
+            token!(Ident, "y"),
+            token!(Rparen, ")"),
+            token!(Lbrace, "{"),
+            token!(Ident, "x"),
+            token!(Plus, "+"),
+            token!(Ident, "y"),
+            token!(Semicolon, ";"),
+            token!(Rbrace, "}"),
+            token!(Semicolon, ";"),
+            token!(Let, "let"),
+            token!(Ident, "result"),
+            token!(Assign, "="),
+            token!(Ident, "add"),
+            token!(Lparen, "("),
+            token!(Ident, "five"),
+            token!(Comma, ","),
+            token!(Ident, "ten"),
+            token!(Rparen, ")"),
+            token!(Semicolon, ";"),
+            token!(Bang, "!"),
+            token!(Dash, "-"),
+            token!(ForwardSlash, "/"),
+            token!(Asterisk, "*"),
+            token!(Int, "5"),
+            token!(Semicolon, ";"),
+            token!(Int, "5"),
+            token!(LesserThan, "<"),
+            token!(Int, "10"),
+            token!(GreaterThan, ">"),
+            token!(Int, "5"),
+            token!(Semicolon, ";"),
         ];
         let mut lex = Lexer::new(input.to_string());
         for (tok, i) in expected.iter().zip(0..expected.len()) {
             let got = lex.next_token();
-            println!("expected: {:?}, got: {:?} at: {}", tok, got, i);
+            //println!("expected: {:?}, got: {:?} at: {}", tok, got, i);
             assert_eq!(&got, tok)
         }
     }

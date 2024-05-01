@@ -71,7 +71,7 @@ pub struct LetStatement {
 
 impl Show for LetStatement {
     fn show(&self) -> String {
-        format!("{} {} = {};", self.token, self.name.0, self.value.show())
+        format!("{} {} = {};", self.token.literal, self.name.0, self.value.show())
     }
 }
 
@@ -83,7 +83,7 @@ pub struct ReturnStatement {
 
 impl Show for ReturnStatement {
     fn show(&self) -> String {
-        format!("{} {};", self.token, self.return_value.show())
+        format!("{} {};", self.token.literal, self.return_value.show())
     }
 }
 
@@ -101,6 +101,7 @@ impl Show for ExpressionStatement {
 
 #[cfg(test)]
 mod tests {
+    use crate::lexer::token::TokenType::{Let, Return};
     use super::*;
 
     #[test]
@@ -108,12 +109,12 @@ mod tests {
         let program = Program {
             statements: vec![
                 Statement::Let(LetStatement {
-                    token: Token::Let,
+                    token: Token { token_type: Let, literal: "let".to_string() },
                     name: Identifier("myVar".to_string()),
                     value: Expression::Id(Identifier("anotherVar".to_string())),
                 }),
                 Statement::Return(ReturnStatement {
-                    token: Token::Return,
+                    token: Token { token_type: Return, literal: "return".to_string() },
                     return_value: Expression::Lit(Literal("5".to_string())),
                 }),
             ],
