@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::{Expression, ExpressionStatement, Identifier, LetStatement, Literal, Program, ReturnStatement, Statement};
+use crate::ast::{Expression, ExpressionStatement, Identifier, IntegerLiteral, LetStatement, Literal, Program, ReturnStatement, Statement};
 use crate::lexer::Lexer;
 use crate::lexer::token::{Token, TokenType};
 use crate::lexer::token::TokenType::Illegal;
@@ -28,6 +28,7 @@ impl Parser {
             infix_parse_fns: HashMap::new(),
         };
         parser.prefix_parse_fns.insert(TokenType::Ident, parse_identifier);
+        parser.prefix_parse_fns.insert(TokenType::Int, parse_integer_literal);
         parser.next_token();
         parser.next_token();
         parser
@@ -114,12 +115,17 @@ pub fn parse_identifier(parser: &mut Parser) -> Result<Expression, String> {
     Ok(Expression::Id(Identifier(parser.current_token.literal.clone())))
 }
 
+pub fn parse_integer_literal(parser: &mut Parser) -> Result<Expression, String> {
+    let val = parser.current_token.literal.parse::<i64>().unwrap();
+    Ok(Expression::Integer(IntegerLiteral(val)))
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::ast::{Expression, ExpressionStatement, Identifier, LetStatement, Literal, ReturnStatement, Statement};
+    use crate::ast::{Expression, ExpressionStatement, Identifier, IntegerLiteral, LetStatement, Literal, ReturnStatement, Statement};
     use crate::lexer::Lexer;
     use crate::lexer::token::Token;
-    use crate::lexer::token::TokenType::{Ident, Let, Return};
+    use crate::lexer::token::TokenType::{Ident, Int, Let, Return};
     use crate::parser::Parser;
     use crate::token;
 
@@ -193,6 +199,18 @@ mod tests {
         let program = parser.parse_program()?;
         assert_eq!(program.statements.len(), 1);
         let expected_statement = Statement::Expression(ExpressionStatement { token: Token { token_type: Ident, literal: "foobar".to_string() }, expression: Expression::Id(Identifier("foobar".to_string())) });
+        assert_eq!(program.statements[0], expected_statement);
+        Ok(())
+    }
+    
+    #[test]
+    fn test_integer_expression() -> Result<(), String> {
+        let input = "5";
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program()?;
+        assert_eq!(program.statements.len(), 1);
+        let expected_statement = Statement::Expression(ExpressionStatement { token: Token { token_type: Int, literal: "5".to_string() }, expression: Expression::Integer(IntegerLiteral(5)) });
         assert_eq!(program.statements[0], expected_statement);
         Ok(())
     }

@@ -23,6 +23,7 @@ impl Show for Statement {
 pub enum Expression {
     Id(Identifier),
     Lit(Literal),
+    Integer(IntegerLiteral),
 }
 
 impl Show for Expression {
@@ -30,6 +31,7 @@ impl Show for Expression {
         match self {
             Expression::Id(id) => id.0.clone(),
             Expression::Lit(lit) => lit.0.clone(),
+            Expression::Integer(int) => int.0.to_string(),
         }
     }
 }
@@ -61,6 +63,9 @@ pub struct Identifier(pub String);
 
 #[derive(Debug, PartialEq)]
 pub struct Literal(pub String);
+
+#[derive(Debug, PartialEq)]
+pub struct IntegerLiteral(pub i64);
 
 #[derive(Debug, PartialEq)]
 pub struct LetStatement {
